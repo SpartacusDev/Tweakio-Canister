@@ -1,10 +1,10 @@
 #import "Tweak.h"
 
 
-@implementation TWCanisterApi
+%subclass TWCanisterApi : TWBaseApi
 
 - (instancetype)init {
-    self = [super init];
+    self = %orig;
     if (self) {
         self.prefsValue = @"com.spartacus.tweakio.canister";
         self.name = @"Canister";
@@ -16,56 +16,58 @@
     return self;
 }
 
-- (void)search:(NSString *)query error:(NSError **)error completionHandler:(void (^)(NSArray<Result *> *))completionHandler {
+- (void)search:(NSString *)query completionHandler:(void (^)(NSArray<Result *> *, NSError *))completionHandler {
     query = [query stringByReplacingOccurrencesOfString:@" " withString:@"%20"];
     
     NSURL *api = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"https://api.canister.me/v2/jailbreak/package/search?q=%@", query]];
-    NSData *data = [NSData dataWithContentsOfURL:api];
-    if (!data) {
-        *error = [[NSError alloc] initWithDomain:@"com.spartacus.tweakio.canister" code:1 userInfo:@{   
-            NSLocalizedDescriptionKey: @"Failed to retrieve data",
-            NSLocalizedFailureReasonErrorKey: @"Failed to retrive data from Canister",
-        }];
-        return;
-    }
-
-    NSDictionary *results = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:NULL];
-    NSMutableArray *resultsArray = [NSMutableArray array];
-
-    for (NSDictionary *result in results[@"data"]) {
-        NSString *iconURL;
-        if (((NSObject *)result[@"icon"]).class == NSNull.class || [result[@"icon"] isEqual:@""] || [result[@"icon"] hasPrefix:@"file://"] || ((NSObject *)results[@"icon"]).class == NSNull.class) {
-            iconURL = (NSString *)[NSNull null];
+    NSURLSession *session = [NSURLSession sharedSession];
+    NSURLRequest *request = [NSURLRequest requestWithURL:api];
+    NSURLSessionDataTask *task = [session dataTaskWithRequest:request completionHandler:^(NSData* data, NSURLResponse *response, NSError *err){
+        if (err) {
+            completionHandler(nil, err);
+            return;
         }
-        else
-            iconURL = result[@"icon"];
-        
-        NSURL *downloadPath = [[NSURL URLWithString:result[@"repository"][@"uri"]] URLByAppendingPathComponent:result[@"filename"]];
 
-        NSDictionary *data = @{
-            @"name": result[@"name"],
-            @"package": result[@"package"],
-            @"version": result[@"version"],
-            @"description": result[@"description"],
-            @"author": result[@"author"] && ((NSObject *)result[@"author"]).class != NSNull.class ? result[@"author"] : @"UNKNOWN",
-            @"price": result[@"price"],
-            @"repo": [[%c(Repo) alloc] initWithURL:[NSURL URLWithString:result[@"repository"][@"uri"]] andName:result[@"repository"][@"key"]],
-            @"icon url": iconURL.class == NSNull.class ? iconURL : [iconURL hasPrefix:@"http"] ? [NSURL URLWithString:iconURL] : [NSURL fileURLWithPath:iconURL],
-            @"depiction": [result objectForKey:@"depiction"] && ((NSObject *)result[@"depiction"]).class != NSNull.class ? [NSURL URLWithString:result[@"depiction"]] ?: [NSURL URLWithString:@""] : [NSURL URLWithString:@""],
-            @"section": result[@"section"],
-            @"architecture": result[@"architecture"],
-            @"filename": downloadPath
-        };
-        [resultsArray addObject:[[%c(Result) alloc] initWithDictionary:data]];
-    }
-    completionHandler([resultsArray copy]);
+        if (!data) {
+            completionHandler(nil, [[NSError alloc] initWithDomain:@"com.spartacus.tweakio.canister" code:1 userInfo:@{   
+                NSLocalizedDescriptionKey: @"Failed to retrieve data",
+                NSLocalizedFailureReasonErrorKey: @"Failed to retrive data from Canister",
+            }]);
+            return;
+        }
+
+        NSDictionary *results = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:NULL];
+        NSMutableArray *resultsArray = [NSMutableArray array];
+
+        for (NSDictionary *result in results[@"data"]) {
+            NSString *iconURL;
+            if (((NSObject *)result[@"icon"]).class == NSNull.class || [result[@"icon"] isEqual:@""] || [result[@"icon"] hasPrefix:@"file://"] || ((NSObject *)results[@"icon"]).class == NSNull.class) {
+                iconURL = (NSString *)[NSNull null];
+            }
+            else
+                iconURL = result[@"icon"];
+            
+            NSURL *downloadPath = [[NSURL URLWithString:result[@"repository"][@"uri"]] URLByAppendingPathComponent:result[@"filename"]];
+
+            NSDictionary *data = @{
+                @"name": result[@"name"],
+                @"package": result[@"package"],
+                @"version": result[@"version"],
+                @"description": result[@"description"],
+                @"author": result[@"author"] && ((NSObject *)result[@"author"]).class != NSNull.class ? result[@"author"] : @"UNKNOWN",
+                @"price": result[@"price"],
+                @"repo": [[%c(Repo) alloc] initWithURL:[NSURL URLWithString:result[@"repository"][@"uri"]] andName:result[@"repository"][@"key"]],
+                @"icon url": iconURL.class == NSNull.class ? iconURL : [iconURL hasPrefix:@"http"] ? [NSURL URLWithString:iconURL] : [NSURL fileURLWithPath:iconURL],
+                @"depiction": [result objectForKey:@"depiction"] && ((NSObject *)result[@"depiction"]).class != NSNull.class ? [NSURL URLWithString:result[@"depiction"]] ?: [NSURL URLWithString:@""] : [NSURL URLWithString:@""],
+                @"section": result[@"section"],
+                @"architecture": result[@"architecture"],
+                @"filename": downloadPath
+            };
+            [resultsArray addObject:[[%c(Result) alloc] initWithDictionary:data]];
+        }
+        completionHandler([resultsArray copy], nil);
+    }];
+    [task resume];
 }
 
-@end
-
-%ctor {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    class_setSuperclass(TWCanisterApi.class, %c(TWBaseApi));
-#pragma clang diagnostic pop
-}
+%end

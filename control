@@ -1,6 +1,6 @@
 Package: com.spartacus.tweakio.canister
 Name: Tweakio Canister
-Version: 0.0.1
+Version: 0.0.2
 Architecture: iphoneos-arm
 Description: Adds Canister for Tweakio
 Depiction: https://spartacusdev.github.io/depictions/tweakio-canister.html
@@ -9,4 +9,4 @@ Icon: https://spartacusdev.github.io/images/Tweakio.png
 Maintainer: Spartacus
 Author: Spartacus
 Section: Tweaks
-Depends: mobilesubstrate (>= 0.9.5000), com.spartacus.tweakio (>= 0.1.0)
+Depends: mobilesubstrate (>= 0.9.5000), com.spartacus.tweakio (>= 0.1.1)
